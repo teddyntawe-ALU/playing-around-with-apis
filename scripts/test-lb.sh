@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 # Sends N requests through the load balancer and counts which server answered each one.
 # Works with macOS's default bash 3.2 and Linux bash.
-# Usage: bash scripts/test-lb.sh <lb01-address> [requests=10]
+# Usage: bash scripts/test-lb.sh <lb01-address-or-url> [requests=10]
+#   e.g. bash scripts/test-lb.sh https://www.teddyntawe.tech 10
+#        bash scripts/test-lb.sh 10.0.0.5            (plain address → http://)
 set -euo pipefail
 
-LB="${1:?Usage: bash scripts/test-lb.sh <lb01-address> [requests]}"
+TARGET="${1:?Usage: bash scripts/test-lb.sh <lb01-address-or-url> [requests]}"
 N="${2:-10}"
+[[ "$TARGET" == *://* ]] || TARGET="http://$TARGET"
+URL="${TARGET%/}/api/health"
 results=""
 
-echo "Sending $N requests to http://$LB/api/health"
+echo "Sending $N requests to $URL"
 for ((i = 1; i <= N; i++)); do
-  server=$(curl -s -m 10 -o /dev/null -D - "http://$LB/api/health" | tr -d '\r' |
+  server=$(curl -s -L -m 10 -o /dev/null -D - "$URL" | tr -d '\r' |
     awk -F': ' 'tolower($1)=="x-served-by"{print $2}')
   server="${server:-<no header / request failed>}"
   printf '%3d  %s\n' "$i" "$server"

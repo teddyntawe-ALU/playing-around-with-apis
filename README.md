@@ -2,7 +2,7 @@
 
 RxLens is a web application that lets anyone search **official U.S. FDA medication labels** and check whether a medication has been **recalled**, using live data from the [openFDA API](https://open.fda.gov/apis/). It runs on two application servers (Web01, Web02) behind a load balancer (Lb01).
 
-> **Live app (via Lb01):** `http://<LB01_IP_OR_DOMAIN>/` &nbsp;·&nbsp; **Demo video (≤ 2 min):** _link to be added_
+> **Live app (via Lb01):** https://www.teddyntawe.tech &nbsp;·&nbsp; **Demo video (≤ 2 min):** _link to be added_
 
 ---
 
@@ -83,7 +83,7 @@ The authoritative answers are published by the FDA, but they are spread across l
 
 ```
                         ┌──────────────────────────── Lb01 ───────────────────────────┐
-  Browser ── HTTP :80 ─▶│ HAProxy  · roundrobin · health check GET /api/health (5s)  │
+  Browser ─ HTTPS :443 ▶│ HAProxy · TLS · roundrobin · health check /api/health (2s) │
                         └───────────────┬──────────────────────────────┬──────────────┘
                                         │                              │
                 ┌────────── Web01 ──────▼─────┐        ┌────────── Web02 ──────▼─────┐
@@ -292,8 +292,8 @@ Repeat [section 13](#13-web01-deployment) on Web02 (`ssh ubuntu@<WEB02_IP>`) wit
 ```bash
 curl -s http://<WEB01_IP>/api/health      # "server":"…web-01", "version":"1.0.0"
 curl -s http://<WEB02_IP>/api/health      # "server":"…web-02", "version":"1.0.0"
-ssh ubuntu@<WEB01_IP> git -C /opt/rxlens rev-parse --short HEAD
-ssh ubuntu@<WEB02_IP> git -C /opt/rxlens rev-parse --short HEAD   # must match
+ssh ubuntu@<WEB01_IP> sudo -u rxlens git -C /opt/rxlens rev-parse --short HEAD
+ssh ubuntu@<WEB02_IP> sudo -u rxlens git -C /opt/rxlens rev-parse --short HEAD   # must match
 ```
 
 ## 15. Lb01 load-balancer configuration
@@ -318,16 +318,16 @@ backend rxlens_servers
     balance roundrobin
     option httpchk GET /api/health
     http-check expect status 200
-    default-server inter 5s fall 3 rise 2
+    default-server inter 2s fall 2 rise 2
     server web-01 <WEB01_IP>:80 check
     server web-02 <WEB02_IP>:80 check
 ```
 
 - `http_front` redirects HTTP to HTTPS; `https_front` terminates TLS with the existing certificate.
 - `balance roundrobin`: requests alternate between Web01 and Web02.
-- `option httpchk` + `http-check expect status 200`: HAProxy polls `/api/health` every 5 s. A server is removed after 3 failures and re-added after 2 successes.
+- `option httpchk` + `http-check expect status 200`: HAProxy polls `/api/health` every 2 s. A server is removed after 2 failures (~4 s) and re-added after 2 successes.
 - `option forwardfor` / `X-Forwarded-Proto`: pass the real client IP and scheme to the web servers.
-- `option redispatch` + `retries 2`: a request that fails to connect to a dead server is retried on the other one.
+- `retries 2` + `option redispatch` + `retry-on conn-failure empty-response response-timeout 502 503 504`: if a server refuses the connection or answers 502/503/504 (for example, its Nginx is up but the Node app crashed), the request is retried on the other server, so users see no errors even before the health check marks the server down.
 - Stats page (local only): `curl http://127.0.0.1:8404/stats` on Lb01.
 
 **Nginx alternative.** If Lb01 uses Nginx, use [`deploy/nginx/lb01-nginx.conf`](deploy/nginx/lb01-nginx.conf) (an `upstream` block with passive health checks via `max_fails`/`fail_timeout` and `proxy_next_upstream` failover).
@@ -336,25 +336,42 @@ backend rxlens_servers
 
 ```bash
 # 1. Traffic distribution: alternating server names
-bash scripts/test-lb.sh <LB01_IP> 10
-#   1  web-01
-#   2  web-02
-#   3  web-01 …
-#   Distribution: 5 web-01 / 5 web-02
+bash scripts/test-lb.sh https://www.teddyntawe.tech 10
+#   1  7123-web-01
+#   2  7123-web-02
+#   3  7123-web-01 …
+#   Distribution: 5 7123-web-01 / 5 7123-web-02
 
 # 2. Same thing with plain curl
-for i in $(seq 1 6); do curl -sI http://<LB01_IP>/ | grep -i x-served-by; done
+for i in $(seq 1 6); do curl -sI https://www.teddyntawe.tech/ | grep -i x-served-by; done
 
 # 3. Full functional test through the load balancer
-node scripts/smoke.mjs http://<LB01_IP>
+node scripts/smoke.mjs https://www.teddyntawe.tech
 
 # 4. Failover: stop the app on Web01 …
 ssh ubuntu@<WEB01_IP> sudo systemctl stop rxlens
-#    … wait ~15 s (3 failed health checks), then every request goes to web-02:
-bash scripts/test-lb.sh <LB01_IP> 6
-#    Restore Web01; it rejoins after 2 successful checks (~10 s):
+#    … every request is now answered by web-02 (failed attempts are retried immediately;
+#    HAProxy marks web-01 DOWN after ~4 s):
+bash scripts/test-lb.sh https://www.teddyntawe.tech 6
+#    Restore Web01; it rejoins after 2 successful checks (~4 s):
 ssh ubuntu@<WEB01_IP> sudo systemctl start rxlens
+
+# 5. Health-check status as HAProxy sees it (run on Lb01)
+curl -s "http://127.0.0.1:8404/stats;csv" | cut -d, -f2,18,37 | grep web-
+#   web-01,UP,L7OK
+#   web-02,UP,L7OK
 ```
+
+**Results recorded on 2026-11-25** (live servers):
+
+| Test | Result |
+|---|---|
+| 10 requests via `https://www.teddyntawe.tech` | 5 × web-01, 5 × web-02 |
+| Smoke test via the load balancer | 9/9 passed, answers alternating between servers |
+| HTTP → HTTPS | `301` to `https://www.teddyntawe.tech/`, certificate valid |
+| Stop app on web-01, 6 requests right away | 6 × `200` from web-02 (0 errors) |
+| 16 s later | HAProxy: `web-01 DOWN (L7STS)`, `web-02 UP`; 8/8 requests `200` |
+| Restart app on web-01, 12 s later | Both `UP (L7OK)`; requests split 4 / 4 again |
 
 In the browser, the footer shows **“Served by web-0X”**. Reload a few times to see it alternate.
 
@@ -410,8 +427,9 @@ _Demo video link (≤ 2 minutes): **to be added**_
 
 ## 21. Deployed application
 
-- Load balancer: `http://<LB01_IP_OR_DOMAIN>/` _(to be added)_
-- Web01: `http://<WEB01_IP>/` · Web02: `http://<WEB02_IP>/`
+- **Through the load balancer (Lb01): https://www.teddyntawe.tech**
+- Health check: https://www.teddyntawe.tech/api/health
+- Web01 and Web02 also answer directly on their own IPs over HTTP (for testing). Use the domain for normal access.
 
 ---
 

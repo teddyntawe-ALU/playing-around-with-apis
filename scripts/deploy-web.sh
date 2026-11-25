@@ -26,9 +26,12 @@ id -u "$APP_USER" >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell 
 
 echo "==> Fetching code ($BRANCH)"
 if [[ -d "$APP_DIR/.git" ]]; then
-  git -C "$APP_DIR" fetch --quiet origin "$BRANCH"
-  git -C "$APP_DIR" checkout --quiet "$BRANCH"
-  git -C "$APP_DIR" pull --ff-only --quiet origin "$BRANCH"
+  # The checkout belongs to $APP_USER; git refuses to operate on it as another user
+  # ("dubious ownership"), so run updates as the owner.
+  as_app() { runuser -u "$APP_USER" -- "$@"; }
+  as_app git -C "$APP_DIR" fetch --quiet origin "$BRANCH"
+  as_app git -C "$APP_DIR" checkout --quiet "$BRANCH"
+  as_app git -C "$APP_DIR" pull --ff-only --quiet origin "$BRANCH"
 else
   git clone --quiet --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
 fi
@@ -63,8 +66,9 @@ nginx -t
 systemctl reload nginx
 
 echo "==> Health check"
+sleep 2 # give Nginx and the app a moment after the reload/restart
 for _ in {1..10}; do
-  if curl -fsS http://127.0.0.1/api/health; then echo; echo "Deployed successfully on $(hostname)."; exit 0; fi
+  if curl -fsS http://127.0.0.1/api/health 2>/dev/null; then echo; echo "Deployed successfully on $(hostname)."; exit 0; fi
   sleep 1
 done
 echo "Health check failed. Inspect: journalctl -u rxlens -n 50" >&2
