@@ -1,0 +1,33 @@
+{
+  "name": "rxlens",
+  "version": "1.0.0",
+  "description": "Search official FDA medication labels and check drug recalls using live data from the openFDA API.",
+  "type": "module",
+  "main": "src/server.js",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test tests/",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "keywords": [
+    "openfda",
+    "fda",
+    "medication",
+    "drug-recalls",
+    "express"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^5.3.0",
+    "helmet": "^8.3.0"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.2"
+  }
+}
