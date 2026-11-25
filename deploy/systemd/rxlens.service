@@ -1,0 +1,26 @@
+# systemd unit for RxLens on Web01 / Web02.
+# Install: sudo cp deploy/systemd/rxlens.service /etc/systemd/system/rxlens.service
+#          sudo systemctl daemon-reload && sudo systemctl enable --now rxlens
+[Unit]
+Description=RxLens - FDA medication label and recall lookup (Node.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rxlens
+Group=rxlens
+WorkingDirectory=/opt/rxlens
+EnvironmentFile=/opt/rxlens/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=3
+# Basic hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
