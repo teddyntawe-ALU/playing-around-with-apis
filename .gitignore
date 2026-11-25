@@ -25,5 +25,5 @@ build/
 coverage/
 .nyc_output/
 
-# Local Claude Code tool config
+# Local tool settings
 .claude/
