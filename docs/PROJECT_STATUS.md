@@ -19,7 +19,7 @@ _Last updated: 2026-11-25_
 
 ## Outstanding (needs action from you)
 
-1. **Demo video** (≤ 2 min): record it, upload it, and add the link to the README.
+1. **Demo video:** the README links to https://www.youtube.com/watch?v=_j_SBkCJtVs. That video shows the reference app (MedLookup), not RxLens. Consider recording a ≤ 2-minute RxLens demo using the script below and swapping the link.
 2. **CodeVibe report**: generate it with CodeVibe and place it in `codevibe-reports/`.
 3. Optional: an openFDA API key in each server's `/opt/rxlens/.env` (raises the daily limit from 1,000 to 120,000 requests per IP), then `sudo systemctl restart rxlens`.
 4. Optional: the bare domain `teddyntawe.tech` points straight at web-01 (35.178.153.123), bypassing the load balancer. Point it at lb-01 (3.10.227.167) in your DNS settings if you want both names balanced.
