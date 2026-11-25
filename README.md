@@ -304,8 +304,9 @@ ssh ubuntu@<WEB02_IP> git -C /opt/rxlens rev-parse --short HEAD   # must match
 ssh ubuntu@<LB01_IP>
 sudo apt-get update && sudo apt-get install -y haproxy
 sudo cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.bak.$(date +%F-%H%M)   # back up first
-# copy deploy/haproxy/haproxy.cfg to /etc/haproxy/haproxy.cfg, then set the server IPs:
-sudo sed -i 's/WEB01_IP/<WEB01_IP>/; s/WEB02_IP/<WEB02_IP>/' /etc/haproxy/haproxy.cfg
+# copy deploy/haproxy/haproxy.cfg to /etc/haproxy/haproxy.cfg, then set the server IPs and certificate:
+sudo sed -i 's/WEB01_IP/<WEB01_IP>/; s/WEB02_IP/<WEB02_IP>/; s#CERT_PEM#/etc/haproxy/certs/<your-domain>.pem#' /etc/haproxy/haproxy.cfg
+# (no certificate? delete the https_front block and the redirect line in http_front)
 sudo haproxy -c -f /etc/haproxy/haproxy.cfg          # validate
 sudo systemctl enable haproxy && sudo systemctl reload haproxy
 ```
@@ -322,6 +323,7 @@ backend rxlens_servers
     server web-02 <WEB02_IP>:80 check
 ```
 
+- `http_front` redirects HTTP to HTTPS; `https_front` terminates TLS with the existing certificate.
 - `balance roundrobin`: requests alternate between Web01 and Web02.
 - `option httpchk` + `http-check expect status 200`: HAProxy polls `/api/health` every 5 s. A server is removed after 3 failures and re-added after 2 successes.
 - `option forwardfor` / `X-Forwarded-Proto`: pass the real client IP and scheme to the web servers.

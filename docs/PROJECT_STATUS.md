@@ -16,8 +16,8 @@ _Last updated: 2026-11-25_
 
 ## Outstanding (needs information or action from you)
 
-1. **Server details**: Web01, Web02 and Lb01 IP addresses / SSH user. Ted's earlier repo lists HAProxy on lb-01 and two web servers; confirm they are still the current servers before deploying.
-2. **Repository**: URL of Ted's GitHub repository for this project, and the target branch.
+1. **Server details**: found (2026-11-25). SSH works as `ubuntu` with `~/.ssh/alu_servers` on lb-01, web-01 and web-02. lb-01 runs HAProxy 2.0 with HTTPS for `www.teddyntawe.tech`. Neither web server has Node.js yet; both still serve the old static Nginx page. The new HAProxy and Nginx configs passed `haproxy -c` / `nginx -t` on the real servers.
+2. **Repository**: no repo exists for this project yet under `teddyntawe-ALU`; one needs to be created (public).
 3. **Git identity**: commits so far were made with the machine's default identity. Set `git config user.name` / `user.email` to the account that should own the work before pushing.
 4. **Deploy** to Web01 + Web02, configure Lb01, run `scripts/test-lb.sh` and the failover test, and add the URLs to the README.
 5. **Demo video** (≤ 2 min): record it, upload it, and add the link to the README.
@@ -26,7 +26,7 @@ _Last updated: 2026-11-25_
 
 ## Known issues / limitations
 
-- The HAProxy and Nginx configs have not been validated with `haproxy -c` / `nginx -t` yet; neither tool is installed on the development Mac. Run those commands on the servers (they're in the README).
+- An old machine (18.133.158.178) also has the hostname `7123-web-01`. lb-01 does not use it. Deploy only to the web-01 that lb-01 points to.
 - The cache is per server (in-memory), so the first identical search on each server calls openFDA once. That's acceptable at this scale.
 - Client-side sort reorders only the results loaded so far (24 per page). Use “Load more” to sort a larger set. openFDA can't sort labels by text fields server-side.
 - Searches match whole words/phrases as indexed by openFDA (e.g. `5/325` returns nothing; search the drug name instead).
