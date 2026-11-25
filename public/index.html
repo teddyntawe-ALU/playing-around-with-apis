@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RxLens — FDA medication labels &amp; recalls</title>
+    <meta
+      name="description"
+      content="Search official FDA medication labels and check for drug recalls using live data from the openFDA API."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script type="module" src="/js/main.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#results">Skip to results</a>
+
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="/" aria-label="RxLens home">
+          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <rect x="1" y="1" width="30" height="30" rx="9" />
+            <path d="M11 22V10h5.2a3.6 3.6 0 0 1 0 7.2H11m5.2 0L21 22" />
+          </svg>
+          <span class="brand-text">
+            <span class="brand-name">RxLens</span>
+            <span class="brand-tag">FDA labels &amp; recalls</span>
+          </span>
+        </a>
+        <div class="tabs" role="tablist" aria-label="Data set">
+          <button class="tab" role="tab" id="tab-drugs" data-tab="drugs" aria-controls="results" aria-selected="true">
+            Medications
+          </button>
+          <button class="tab" role="tab" id="tab-recalls" data-tab="recalls" aria-controls="results" aria-selected="false" tabindex="-1">
+            Recalls
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="search-panel" aria-labelledby="page-title">
+        <h1 id="page-title" class="page-title">Look up a medication</h1>
+        <p id="page-lede" class="page-lede">
+          Official labelling from the U.S. Food and Drug Administration: uses, dosage and warnings.
+        </p>
+
+        <form id="search-form" class="search-form" role="search" novalidate>
+          <label for="search-input" class="visually-hidden">Search by brand or generic name</label>
+          <div class="search-field">
+            <svg class="icon search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <input
+              id="search-input"
+              name="q"
+              type="search"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="100"
+              placeholder="Search by brand or generic name, e.g. ibuprofen"
+              aria-describedby="search-hint search-error"
+            />
+            <kbd class="search-kbd" aria-hidden="true">/</kbd>
+          </div>
+          <button type="submit" class="btn btn-primary">Search</button>
+        </form>
+        <p id="search-error" class="field-error" role="alert" hidden></p>
+        <div class="quick" id="search-hint">
+          <span class="quick-label">Try:</span>
+          <div class="chips" id="quick-chips">
+            <button type="button" class="chip" data-q="ibuprofen">Ibuprofen</button>
+            <button type="button" class="chip" data-q="metformin">Metformin</button>
+            <button type="button" class="chip" data-q="amoxicillin">Amoxicillin</button>
+            <button type="button" class="chip" data-q="lisinopril">Lisinopril</button>
+            <button type="button" class="chip" data-q="atorvastatin">Atorvastatin</button>
+            <button type="button" class="chip" data-q="acetaminophen">Acetaminophen</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="toolbar" aria-label="Filter and sort results">
+        <div class="filters" data-for="drugs">
+          <label class="control">
+            <span class="control-label">Route</span>
+            <select id="filter-route">
+              <option value="">All routes</option>
+              <option value="ORAL">Oral</option>
+              <option value="TOPICAL">Topical</option>
+              <option value="INTRAVENOUS">Intravenous</option>
+              <option value="SUBCUTANEOUS">Subcutaneous</option>
+              <option value="INTRAMUSCULAR">Intramuscular</option>
+              <option value="OPHTHALMIC">Ophthalmic</option>
+              <option value="NASAL">Nasal</option>
+              <option value="RESPIRATORY (INHALATION)">Inhalation</option>
+              <option value="TRANSDERMAL">Transdermal</option>
+              <option value="SUBLINGUAL">Sublingual</option>
+              <option value="RECTAL">Rectal</option>
+              <option value="VAGINAL">Vaginal</option>
+            </select>
+          </label>
+          <label class="control">
+            <span class="control-label">Type</span>
+            <select id="filter-type">
+              <option value="">All types</option>
+              <option value="otc">Over the counter</option>
+              <option value="rx">Prescription</option>
+            </select>
+          </label>
+          <label class="control">
+            <span class="control-label">Sort</span>
+            <select id="sort-drugs">
+              <option value="relevance">Best match</option>
+              <option value="name-asc">Brand name A–Z</option>
+              <option value="name-desc">Brand name Z–A</option>
+              <option value="manufacturer-asc">Manufacturer A–Z</option>
+              <option value="route-asc">Route A–Z</option>
+              <option value="updated-desc">Recently updated</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="filters" data-for="recalls" hidden>
+          <label class="control">
+            <span class="control-label">Severity</span>
+            <select id="filter-class">
+              <option value="">All classes</option>
+              <option value="Class I">Class I (most serious)</option>
+              <option value="Class II">Class II</option>
+              <option value="Class III">Class III (least serious)</option>
+            </select>
+          </label>
+          <label class="control">
+            <span class="control-label">Status</span>
+            <select id="filter-status">
+              <option value="">Any status</option>
+              <option value="Ongoing">Ongoing</option>
+              <option value="Completed">Completed</option>
+              <option value="Terminated">Terminated</option>
+            </select>
+          </label>
+          <label class="control">
+            <span class="control-label">Sort</span>
+            <select id="sort-recalls">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="severity-desc">Most severe first</option>
+              <option value="severity-asc">Least severe first</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="toolbar-end">
+          <label class="control control-grow">
+            <span class="control-label">Refine loaded results</span>
+            <input id="refine-input" type="search" placeholder="Manufacturer, name, reason…" autocomplete="off" maxlength="60" />
+          </label>
+          <button id="refresh-btn" type="button" class="btn btn-ghost" title="Fetch fresh data from the FDA">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" /></svg>
+            <span>Refresh</span>
+          </button>
+        </div>
+      </section>
+
+      <div class="summary-row">
+        <p id="summary" class="summary" aria-live="polite"></p>
+      </div>
+
+      <section id="results" class="results" aria-live="polite" aria-busy="false" tabindex="-1"></section>
+
+      <div class="more">
+        <button id="load-more" type="button" class="btn btn-secondary" hidden>Load more</button>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          Data from <a href="https://open.fda.gov/" rel="noopener" target="_blank">openFDA</a>, a service of the U.S.
+          Food and Drug Administration. RxLens is not endorsed by the FDA. Information may be incomplete or out of date —
+          <strong>do not use it to make medical decisions</strong>; consult a pharmacist or doctor.
+        </p>
+        <p class="served-by">Served by <span id="served-by">—</span></p>
+      </div>
+    </footer>
+
+    <dialog id="detail-dialog" class="detail" aria-labelledby="detail-title">
+      <div class="detail-inner" id="detail-content"></div>
+    </dialog>
+  </body>
+</html>
